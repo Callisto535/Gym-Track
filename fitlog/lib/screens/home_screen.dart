@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fitlog/config/api_config.dart';
 import 'package:fitlog/models/exercise.dart';
 import 'package:fitlog/models/news_article.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _newsApiUrl = 'http://localhost:3000/news';
+  final String _newsApiUrl = '${ApiConfig.baseUrl}/news';
   final List<NewsArticle> _newsArticles = [];
   bool _isNewsLoading = true;
   String _newsErrorMessage = '';

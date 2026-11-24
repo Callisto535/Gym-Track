@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fitlog/config/api_config.dart';
 import 'package:fitlog/models/exercise.dart';
 import 'package:fitlog/screens/exercise_form_screen.dart';
 
@@ -23,7 +24,7 @@ class WorkoutScreen extends StatefulWidget {
 }
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
-  final String _apiUrl = 'http://localhost:3000/workouts';
+  final String _apiUrl = '${ApiConfig.baseUrl}/workouts';
 
   final List<String> categories = [
     'Chest',

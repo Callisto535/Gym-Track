@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fitlog/config/api_config.dart';
 import 'package:fitlog/screens/home_screen.dart';
 import 'package:fitlog/screens/workout_screen.dart';
 import 'package:fitlog/screens/history_screen.dart';
@@ -54,7 +55,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  final String _apiUrl = 'http://localhost:3000/workouts';
+  final String _apiUrl = '${ApiConfig.baseUrl}/workouts';
 
   final List<Exercise> _exercises = [];
   bool _isLoading = true;
