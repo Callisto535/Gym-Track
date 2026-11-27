@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<NewsArticle> _newsArticles = [];
   bool _isNewsLoading = true;
   String _newsErrorMessage = '';
+  String _newsNotice = '';
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isNewsLoading = true;
       _newsErrorMessage = '';
+      _newsNotice = '';
     });
 
     try {
@@ -51,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is Map<String, dynamic> &&
-            data['status'] == 'success' &&
+            (data['status'] == 'success' || data['status'] == 'fallback') &&
             data['news'] is List) {
           final List<dynamic> newsList = data['news'];
           setState(() {
@@ -67,6 +69,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     .take(10)
                     .toList(),
               );
+            _newsNotice = data['status'] == 'fallback'
+                ? data['message']?.toString() ??
+                      'Live news unavailable. Showing saved articles instead.'
+                : '';
             _isNewsLoading = false;
           });
         } else {
@@ -163,29 +169,56 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      body: widget.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : widget.errorMessage.isNotEmpty
-          ? Center(
-              child: Padding(
+      body: widget.isLoading || widget.errorMessage.isNotEmpty
+          ? RefreshIndicator(
+              onRefresh: _refreshAll,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.errorMessage,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFFB1B5AA)),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: widget.onRefresh,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFC7F000),
-                        foregroundColor: Colors.black,
+                    if (widget.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
                       ),
-                      child: const Text('Try Again'),
+                    if (widget.errorMessage.isNotEmpty)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.errorMessage,
+                                style: const TextStyle(
+                                  color: Color(0xFFB1B5AA),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: widget.onRefresh,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFC7F000),
+                                  foregroundColor: Colors.black,
+                                ),
+                                child: const Text('Try Again'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Fitness News',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                    const SizedBox(height: 10),
+                    _buildNewsSection(),
                   ],
                 ),
               ),
@@ -384,11 +417,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_newsNotice.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              _newsNotice,
+              style: const TextStyle(color: Color(0xFFB1B5AA)),
+            ),
+          ),
         for (final article in _newsArticles)
           _NewsArticleCard(
             article: article,
-            onTap: () => _openArticle(article.url),
+            onTap: () => _openArticle(article.link),
           ),
       ],
     );
@@ -433,112 +475,31 @@ class _NewsArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: article.image.isEmpty
-                  ? Container(
-                      height: 160,
-                      width: double.infinity,
-                      color: const Color(0xFF292C26),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.article_outlined,
-                        size: 48,
-                        color: Color(0xFFB1B5AA),
-                      ),
-                    )
-                  : Image.network(
-                      article.image,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 160,
-                          width: double.infinity,
-                          color: const Color(0xFF292C26),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.broken_image_outlined,
-                            size: 48,
-                            color: Color(0xFFB1B5AA),
-                          ),
-                        );
-                      },
-                    ),
+            Text(
+              article.title.isEmpty ? 'Untitled article' : article.title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    article.title.isEmpty ? 'Untitled article' : article.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    article.description.isEmpty
-                        ? 'No description available.'
-                        : article.description,
-                    style: const TextStyle(color: Color(0xFFB1B5AA)),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (article.category.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFC7F000),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            article.category,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      Text(
-                        article.publishedAt.isEmpty
-                            ? 'Unknown date'
-                            : article.publishedAt,
-                        style: const TextStyle(
-                          color: Color(0xFFB1B5AA),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    article.source.isEmpty ? 'Unknown source' : article.source,
-                    style: const TextStyle(
-                      color: Color(0xFFC7F000),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 8),
+            Text(
+              article.summary.isEmpty
+                  ? 'No summary available.'
+                  : article.summary,
+              style: const TextStyle(color: Color(0xFFB1B5AA)),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: onTap,
+              icon: const Icon(Icons.open_in_new),
+              label: Text(
+                article.link,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

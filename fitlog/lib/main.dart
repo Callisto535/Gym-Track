@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fitlog/config/api_config.dart';
 import 'package:fitlog/screens/home_screen.dart';
+import 'package:fitlog/screens/login_screen.dart';
+import 'package:fitlog/screens/splash_screen.dart';
 import 'package:fitlog/screens/workout_screen.dart';
 import 'package:fitlog/screens/history_screen.dart';
 import 'package:fitlog/models/exercise.dart';
@@ -41,7 +43,12 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MainScreen(),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/main': (context) => const MainScreen(),
+      },
     );
   }
 }

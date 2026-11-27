@@ -3,10 +3,20 @@ const cors = require('cors')
 const mysql = require('mysql2')
 require('dotenv').config()
 
+const fallbackNews = require('./news_fallback.json')
 const app = express()
 
 app.use(cors())
 app.use(express.json())
+
+function sendFallbackNews(res, reason) {
+  return res.status(200).json({
+    status: 'fallback',
+    message: `${reason} Showing saved articles instead.`,
+    total: fallbackNews.length,
+    news: fallbackNews,
+  })
+}
 
 const connection = mysql.createPool({
   host: process.env.TIDB_HOST,
@@ -41,87 +51,71 @@ app.get('/test-db', (req, res) => {
 })
 
 app.get('/news', async (req, res) => {
-  const binId = process.env.JSONBIN_BIN_ID
-  const masterKey = process.env.JSONBIN_MASTER_KEY
+  const apiKey = process.env.GNEWS_API_KEY
 
-  if (!binId || !masterKey) {
-    return res.status(500).json({
-      status: 'error',
-      message: 'JSONBin configuration is missing',
-    })
+  if (!apiKey) {
+    return sendFallbackNews(res, 'GNews API key is not configured.')
   }
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
 
   try {
-    const response = await fetch(
-      `https://api.jsonbin.io/v3/b/${encodeURIComponent(binId)}/latest`,
-      {
-        method: 'GET',
-        headers: {
-          'X-Master-Key': masterKey,
-        },
-        signal: controller.signal,
-      }
-    )
+    const url = new URL('https://gnews.io/api/v4/search')
+    url.searchParams.set('q', 'fitness OR workout OR exercise')
+    url.searchParams.set('lang', 'en')
+    url.searchParams.set('max', '10')
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'X-Api-Key': apiKey },
+      signal: controller.signal,
+    })
 
     if (response.status === 401 || response.status === 403) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'JSONBin authentication failed. Check the Master Key.',
-      })
+      return sendFallbackNews(res, 'GNews authentication failed.')
     }
 
-    if (response.status === 404) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'JSONBin not found. Check the Bin ID.',
-      })
+    if (response.status === 429) {
+      return sendFallbackNews(res, 'GNews request limit reached.')
     }
 
     if (!response.ok) {
-      return res.status(502).json({
-        status: 'error',
-        message: 'JSONBin returned an unexpected response',
-      })
+      return sendFallbackNews(
+        res,
+        `GNews returned status ${response.status}.`
+      )
     }
 
     let data
     try {
       data = await response.json()
-    } catch (error) {
-      return res.status(502).json({
-        status: 'error',
-        message: 'JSONBin returned an invalid JSON response',
-      })
+    } catch {
+      return sendFallbackNews(res, 'GNews returned invalid JSON.')
     }
 
-    let articles
-
-    if (data && Array.isArray(data.record)) {
-      articles = data.record
-    } else if (data && data.record && Array.isArray(data.record.news)) {
-      articles = data.record.news
-    } else if (Array.isArray(data && data.news)) {
-      articles = data.news
-    } else {
-      return res.status(502).json({
-        status: 'error',
-        message: 'JSONBin response format is invalid',
-      })
+    if (!data || !Array.isArray(data.articles)) {
+      return sendFallbackNews(res, 'GNews returned an invalid response.')
     }
 
-    const cleanArticles = articles.slice(0, 10).map((article) => ({
-      id: article.id,
-      title: article.title,
-      description: article.description,
-      category: article.category,
-      image: article.image,
-      source: article.source,
-      url: article.url,
-      publishedAt: article.publishedAt,
-    }))
+    const cleanArticles = data.articles
+      .filter(
+        (article) =>
+          article &&
+          typeof article.title === 'string' &&
+          typeof article.url === 'string'
+      )
+      .slice(0, 10)
+      .map((article) => ({
+        title: article.title,
+        summary:
+          typeof article.description === 'string' ? article.description : '',
+        link: article.url,
+      }))
+
+    if (cleanArticles.length === 0) {
+      return sendFallbackNews(res, 'GNews returned no usable articles.')
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -130,16 +124,10 @@ app.get('/news', async (req, res) => {
     })
   } catch (error) {
     if (error.name === 'AbortError') {
-      return res.status(504).json({
-        status: 'error',
-        message: 'JSONBin connection timed out',
-      })
+      return sendFallbackNews(res, 'GNews request timed out.')
     }
 
-    return res.status(502).json({
-      status: 'error',
-      message: 'Could not connect to JSONBin',
-    })
+    return sendFallbackNews(res, 'Could not connect to GNews.')
   } finally {
     clearTimeout(timeout)
   }

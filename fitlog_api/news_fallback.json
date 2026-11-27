@@ -1,0 +1,17 @@
+[
+  {
+    "title": "WHO: Physical activity",
+    "summary": "The WHO overview describes the health benefits of physical activity and recommends adults get at least 150 minutes of moderate-intensity activity each week.",
+    "link": "https://www.who.int/news-room/fact-sheets/detail/physical-activity"
+  },
+  {
+    "title": "CDC: Health benefits of physical activity for adults",
+    "summary": "The CDC summarizes how regular physical activity can improve sleep, reduce anxiety, and support heart and brain health.",
+    "link": "https://www.cdc.gov/physical-activity-basics/health-benefits/adults.html"
+  },
+  {
+    "title": "NHS: Physical activity guidelines for adults",
+    "summary": "The NHS outlines weekly activity guidance for adults aged 19 to 64, including aerobic activity and strength exercises.",
+    "link": "https://www.nhs.uk/live-well/exercise/physical-activity-guidelines-for-adults-aged-19-to-64/"
+  }
+]
